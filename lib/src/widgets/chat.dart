@@ -486,7 +486,7 @@ class ChatState extends State<Chat> {
                 ? min(constraints.maxWidth * widget.messageWidthRatio, maxWidth)
                     .floor()
                 : min(
-                    constraints.maxWidth * (widget.messageWidthRatio + 0.06),
+                    constraints.maxWidth * (widget.messageWidthRatio),
                     maxWidth,
                   ).floor();
         final Widget msgWidget = Message(
