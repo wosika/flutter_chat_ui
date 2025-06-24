@@ -57,6 +57,9 @@ class ChatAnimatedListReversed extends StatelessWidget {
 
   /// Callback triggered when the user scrolls near the top (visually bottom), requesting older messages.
   final PaginationCallback? onEndReached;
+  
+  /// Callback triggered when the user scrolls near the bottom (visually top), requesting newer messages.
+  final PaginationCallback? onStartReached;
 
   /// Threshold (0.0 to 1.0) from the top (visually bottom) to trigger [onEndReached].
   /// Defaults to 0.2. See note below.
@@ -90,6 +93,7 @@ class ChatAnimatedListReversed extends StatelessWidget {
     this.keyboardDismissBehavior = ScrollViewKeyboardDismissBehavior.onDrag,
     this.shouldScrollToEndWhenSendingMessage = true,
     this.onEndReached,
+    this.onStartReached,
     // Threshold for triggering pagination, represented as a value between 0 (top)
     // and 1 (bottom). In reversed list, 0 is visually the bottom, 1 is visually the top.
     //
@@ -125,6 +129,7 @@ class ChatAnimatedListReversed extends StatelessWidget {
       shouldScrollToEndWhenSendingMessage: shouldScrollToEndWhenSendingMessage,
       shouldScrollToEndWhenAtBottom: false,
       onEndReached: onEndReached,
+      onStartReached: onStartReached,
       paginationThreshold: paginationThreshold,
       messageGroupingTimeoutInSeconds: messageGroupingTimeoutInSeconds,
       physics: physics,

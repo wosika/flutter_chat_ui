@@ -48,3 +48,6 @@ pubspec_overrides.yaml
 coverage/
 
 devtools_options.yaml
+
+# FVM Version Cache
+.fvm/
