@@ -42,18 +42,14 @@ class _SliverSpacingState extends State<SliverSpacing>
   @override
   Widget build(BuildContext context) {
     final safeArea = MediaQuery.of(context).padding.bottom;
-    return Consumer<ComposerHeightNotifier>(
-      builder: (context, heightNotifier, child) {
-        return SliverPadding(
+    return SliverPadding(
           padding: EdgeInsets.only(
             bottom:
-                heightNotifier.height +
+             //   heightNotifier.height +
                 (widget.bottomPadding ?? 0) +
                 (widget.handleSafeArea == true ? safeArea : 0),
           ),
         );
-      },
-    );
   }
 
   @override
