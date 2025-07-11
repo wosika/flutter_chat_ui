@@ -112,6 +112,9 @@ class ChatAnimatedList extends StatefulWidget {
   /// Physics for the scroll view.
   final ScrollPhysics? physics;
 
+  /// Whether to shrink the scroll view.
+  final bool shrinkWrap;
+
   /// Creates an animated chat list.
   const ChatAnimatedList({
     super.key,
@@ -160,6 +163,7 @@ class ChatAnimatedList extends StatefulWidget {
     this.messagesGroupingMode,
     this.messageGroupingTimeoutInSeconds,
     this.physics,
+    this.shrinkWrap = false,
   });
 
   @override
@@ -443,6 +447,7 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
               controller: _scrollController,
               reverse: widget.reversed,
               physics: widget.physics,
+              shrinkWrap: widget.shrinkWrap,
               keyboardDismissBehavior:
                   widget.keyboardDismissBehavior ??
                   ScrollViewKeyboardDismissBehavior.manual,
