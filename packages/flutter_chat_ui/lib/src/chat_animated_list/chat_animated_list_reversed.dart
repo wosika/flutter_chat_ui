@@ -71,6 +71,9 @@ class ChatAnimatedListReversed extends StatelessWidget {
   /// Physics for the scroll view.
   final ScrollPhysics? physics;
 
+  /// Whether to shrink the scroll view.
+  final bool shrinkWrap;
+
   /// Creates a reversed animated chat list.
   const ChatAnimatedListReversed({
     super.key,
@@ -100,6 +103,7 @@ class ChatAnimatedListReversed extends StatelessWidget {
     this.messagesGroupingMode,
     this.messageGroupingTimeoutInSeconds,
     this.physics,
+    this.shrinkWrap = false,
   });
 
   @override
@@ -128,6 +132,7 @@ class ChatAnimatedListReversed extends StatelessWidget {
       paginationThreshold: paginationThreshold,
       messageGroupingTimeoutInSeconds: messageGroupingTimeoutInSeconds,
       physics: physics,
+      shrinkWrap: shrinkWrap,
     );
   }
 }
