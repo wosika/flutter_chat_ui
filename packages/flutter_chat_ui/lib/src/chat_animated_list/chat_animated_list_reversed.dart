@@ -41,10 +41,10 @@ class ChatAnimatedListReversed extends StatelessWidget {
   final double? bottomPadding;
 
   /// Optional sliver widget to place at the very top (visually bottom) of the scroll view.
-  final Widget? topSliver;
+  final List<Widget>? topSlivers;
 
   /// Optional sliver widget to place at the very bottom (visually top) of the scroll view.
-  final Widget? bottomSliver;
+  final List<Widget>? bottomSlivers;
 
   /// Whether to handle bottom safe area padding automatically.
   final bool? handleSafeArea;
@@ -90,8 +90,8 @@ class ChatAnimatedListReversed extends StatelessWidget {
     this.scrollToBottomAppearanceDelay = const Duration(milliseconds: 250),
     this.topPadding = 8,
     this.bottomPadding = 20,
-    this.topSliver,
-    this.bottomSliver,
+    this.topSlivers,
+    this.bottomSlivers,
     this.handleSafeArea = true,
     this.keyboardDismissBehavior = ScrollViewKeyboardDismissBehavior.onDrag,
     this.shouldScrollToEndWhenSendingMessage = true,
@@ -146,8 +146,8 @@ class ChatAnimatedListReversed extends StatelessWidget {
       scrollToBottomAppearanceDelay: scrollToBottomAppearanceDelay,
       topPadding: topPadding,
       bottomPadding: bottomPadding,
-      topSliver: topSliver,
-      bottomSliver: bottomSliver,
+      topSlivers: topSlivers,
+      bottomSlivers: bottomSlivers,
       handleSafeArea: handleSafeArea,
       keyboardDismissBehavior: keyboardDismissBehavior,
       initialScrollToEndMode: InitialScrollToEndMode.none,

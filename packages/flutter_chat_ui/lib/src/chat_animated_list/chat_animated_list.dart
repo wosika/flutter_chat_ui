@@ -73,10 +73,10 @@ class ChatAnimatedList extends StatefulWidget {
   final double? bottomPadding;
 
   /// Optional sliver widget to place at the very top of the scroll view.
-  final Widget? topSliver;
+  final List<Widget>? topSlivers;
 
   /// Optional sliver widget to place at the very bottom of the scroll view.
-  final Widget? bottomSliver;
+  final List<Widget>? bottomSlivers;
 
   /// Whether to handle bottom safe area padding automatically.
   final bool? handleSafeArea;
@@ -136,8 +136,8 @@ class ChatAnimatedList extends StatefulWidget {
     this.scrollToBottomAppearanceThreshold = 0,
     this.topPadding = 8,
     this.bottomPadding = 20,
-    this.topSliver,
-    this.bottomSliver,
+    this.topSlivers,
+    this.bottomSlivers,
     this.handleSafeArea = true,
     this.keyboardDismissBehavior = ScrollViewKeyboardDismissBehavior.onDrag,
     this.initialScrollToEndMode = InitialScrollToEndMode.jump,
@@ -392,12 +392,12 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
         return <Widget>[
           // Visually at the bottom (first in sliver list for reverse: true)
           _buildComposerHeightSliver(context),
-          if (widget.bottomSliver != null) widget.bottomSliver!,
+          if (widget.bottomSlivers != null) ...widget.bottomSlivers!,
           if (widget.onStartReached != null)
             _buildStartLoadMoreSliver(builders),
           sliverAnimatedList,
           if (widget.onEndReached != null) _buildLoadMoreSliver(builders),
-          if (widget.topSliver != null) widget.topSliver!,
+          if (widget.topSlivers != null) ...widget.topSlivers!,
           if (widget.topPadding != null)
             SliverPadding(padding: EdgeInsets.only(top: widget.topPadding!)),
           // Visually at the top (last in sliver list for reverse: true)
@@ -408,12 +408,12 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
           // Visually at the top
           if (widget.topPadding != null)
             SliverPadding(padding: EdgeInsets.only(top: widget.topPadding!)),
-          if (widget.topSliver != null) widget.topSliver!,
+          if (widget.topSlivers != null) ...widget.topSlivers!,
           if (widget.onEndReached != null) _buildLoadMoreSliver(builders),
           sliverAnimatedList,
           if (widget.onStartReached != null)
             _buildStartLoadMoreSliver(builders),
-          if (widget.bottomSliver != null) widget.bottomSliver!,
+          if (widget.bottomSlivers != null) ...widget.bottomSlivers!,
           _buildComposerHeightSliver(context),
           // Visually at the bottom
         ];
