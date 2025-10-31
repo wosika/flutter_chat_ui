@@ -121,6 +121,11 @@ class ChatAnimatedList extends StatefulWidget {
   /// Physics for the scroll view.
   final ScrollPhysics? physics;
 
+  /// Whether the keyboard should push up the chat list when it appears.
+  /// If false, the keyboard will overlay the chat list without adjusting scroll position.
+  /// Defaults to true.
+  final bool? shouldAdjustScrollOnKeyboard;
+
   /// Creates an animated chat list.
   const ChatAnimatedList({
     super.key,
@@ -178,6 +183,7 @@ class ChatAnimatedList extends StatefulWidget {
     this.messagesGroupingMode,
     this.messageGroupingTimeoutInSeconds,
     this.physics,
+    this.shouldAdjustScrollOnKeyboard = true,
   });
 
   @override
@@ -279,6 +285,11 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
   void onKeyboardHeightChanged(double height) {
     // Reversed lists handle keyboard automatically
     if (widget.reversed) {
+      return;
+    }
+
+    // Skip keyboard adjustment if disabled
+    if (widget.shouldAdjustScrollOnKeyboard == false) {
       return;
     }
 
