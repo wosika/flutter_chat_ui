@@ -355,12 +355,27 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
   /// The scroll position that represents the end of the chat list.
   /// For a reversed list, this is 0.
   /// For a normal list, this is `maxScrollExtent`.
+  /// Returns 0 if the scroll controller doesn't have exactly one position attached.
   double get _chatEndScrollPosition {
-    return widget.reversed ? 0 : _scrollController.position.maxScrollExtent;
+    if (widget.reversed) return 0;
+    // Safety check: only access .position if there's exactly one position attached
+    // This prevents "Bad state: Too many elements" crash when multiple positions exist
+    if (!_scrollController.hasClients ||
+        _scrollController.positions.length != 1) {
+      return 0;
+    }
+    return _scrollController.position.maxScrollExtent;
   }
 
   /// If the scroll-to-bottom button should be shown.
+  /// Returns false if the scroll controller doesn't have exactly one position attached.
   bool get _shouldShowScrollToBottomButton {
+    // Safety check: avoid accessing scroll properties if controller is in invalid state
+    if (!_scrollController.hasClients ||
+        _scrollController.positions.length != 1) {
+      return false;
+    }
+
     final scrollOffsetFromBottom = widget.reversed
         ? _scrollController.offset
         : _chatEndScrollPosition - _scrollController.offset;
@@ -779,6 +794,45 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
     }
   }
 
+  /// Checks if visible indices are near the list start (older messages direction).
+  bool _isNearListStart(List<int> visibleIndices) {
+    if (visibleIndices.isEmpty || _oldList.isEmpty) return false;
+
+    final threshold = widget.paginationThreshold ?? 0.01;
+    final thresholdCount = max(1, (threshold * _oldList.length).ceil());
+
+    if (widget.reversed) {
+      // In reversed list, older messages are at high indices.
+      final oldestVisualIndex = _oldList.length - 1;
+      final triggerStartIndex = oldestVisualIndex - thresholdCount + 1;
+      return visibleIndices.any((idx) => idx >= triggerStartIndex);
+    } else {
+      // In non-reversed list, older messages are at low indices.
+      final triggerEndIndex = thresholdCount - 1;
+      return visibleIndices.any((idx) => idx <= triggerEndIndex);
+    }
+  }
+
+  /// Checks if visible indices are near the list end (newer messages direction).
+  bool _isNearListEnd(List<int> visibleIndices) {
+    if (visibleIndices.isEmpty || _oldList.isEmpty) return false;
+
+    final threshold = widget.startPaginationThreshold ?? 0.8;
+    final distanceFromEnd = 1.0 - threshold;
+    final thresholdCount = max(1, (distanceFromEnd * _oldList.length).ceil());
+
+    if (widget.reversed) {
+      // In reversed list, newer messages are at low indices.
+      final triggerEndIndex = thresholdCount - 1;
+      return visibleIndices.any((idx) => idx <= triggerEndIndex);
+    } else {
+      // In non-reversed list, newer messages are at high indices.
+      final newestVisualIndex = _oldList.length - 1;
+      final triggerStartIndex = newestVisualIndex - thresholdCount + 1;
+      return visibleIndices.any((idx) => idx >= triggerStartIndex);
+    }
+  }
+
   void _handlePagination() async {
     if (!_scrollController.hasClients ||
         !mounted ||
@@ -786,26 +840,36 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
       return;
     }
 
-    // Calculate the user's scroll position as a percentage of the total scrollable area, ranging from 0 to 1.
-    // In a standard list, 0 represents the topmost position and 1 represents the bottommost position.
-    // In a reversed list, the values are inverted: 1 indicates the top and 0 indicates the bottom.
-    final scrollPercentage = _scrollController.position.maxScrollExtent == 0
-        ? 0
-        : _scrollController.offset / _scrollController.position.maxScrollExtent;
-
     // --- Handle reaching the end (older messages) ---
     if (widget.onEndReached != null &&
         _paginationShouldTrigger &&
         !context.read<LoadMoreNotifier>().isLoadingOlder) {
-      // Get the threshold for pagination, defaulting to the very top of the list
-      var threshold = (widget.paginationThreshold ?? 0);
-      if (widget.reversed) {
-        threshold = 1 - threshold;
+      // Use observer to get visible message indices instead of scroll percentage.
+      // This ensures pagination triggers based on visible messages in the chat list,
+      // not the entire ScrollView (which may include topSlivers/bottomSlivers).
+      var visibleIndices = <int>[];
+      try {
+        if (_listKey.currentContext != null) {
+          final notificationResult = await _observerController
+              .dispatchOnceObserve(
+                sliverContext: _listKey.currentContext!,
+                isForce: true,
+                isDependObserveCallback: false,
+              );
+          visibleIndices = notificationResult
+                  .observeResult
+                  ?.innerDisplayingChildModelList
+                  .map((item) => item.index)
+                  .toList() ??
+              [];
+        }
+      } catch (e) {
+        debugPrint('Error observing scroll position: $e');
       }
 
-      final shouldTrigger = widget.reversed
-          ? scrollPercentage >= threshold
-          : scrollPercentage <= threshold;
+      if (!mounted) return;
+
+      final shouldTrigger = _isNearListStart(visibleIndices);
 
       // Trigger pagination if user scrolled past the threshold towards the top.
       if (shouldTrigger) {
@@ -819,38 +883,18 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
         // --- Scroll Anchoring Setup: Only for non-reversed lists ---
         if (!widget.reversed) {
-          try {
-            // We can only anchor the scroll position if the list is actually
-            // in the widget tree and has a context.
-            if (_listKey.currentContext != null) {
-              final notificationResult = await _observerController
-                  .dispatchOnceObserve(
-                    sliverContext: _listKey.currentContext!,
-                    isForce: true,
-                    isDependObserveCallback: false,
-                  );
-              final firstItem = notificationResult
-                  .observeResult
-                  ?.innerDisplayingChildModelList
-                  .firstOrNull;
-              final anchorIndex = firstItem?.index;
+          final anchorIndex = visibleIndices.isNotEmpty
+              ? visibleIndices.reduce(min)
+              : null;
 
-              if (anchorIndex != null &&
-                  anchorIndex >= 0 &&
-                  anchorIndex < _oldList.length) {
-                anchorMessageId = _oldList[anchorIndex].id;
-              }
-            }
-          } catch (e) {
-            debugPrint('Error observing scroll position for anchoring: $e');
+          if (anchorIndex != null &&
+              anchorIndex >= 0 &&
+              anchorIndex < _oldList.length) {
+            anchorMessageId = _oldList[anchorIndex].id;
           }
-          if (!mounted) return;
           initialMessagesCount = _oldList.length;
         }
         // --- End Scroll Anchoring Setup ---
-
-        // Ensure mounted before using context or calling async widget callbacks
-        if (!mounted) return;
 
         // Show loading indicator.
         context.read<LoadMoreNotifier>().setLoadingOlder(true);
@@ -899,14 +943,30 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
     if (widget.onStartReached != null &&
         _startPaginationShouldTrigger &&
         !context.read<LoadMoreNotifier>().isLoadingNewer) {
-      var threshold = widget.startPaginationThreshold ?? 1;
-      if (widget.reversed) {
-        threshold = 1 - threshold;
+      // Use observer to get visible message indices instead of scroll percentage.
+      var visibleIndices = <int>[];
+      try {
+        if (_listKey.currentContext != null) {
+          final notificationResult = await _observerController
+              .dispatchOnceObserve(
+                sliverContext: _listKey.currentContext!,
+                isForce: true,
+                isDependObserveCallback: false,
+              );
+          visibleIndices = notificationResult
+                  .observeResult
+                  ?.innerDisplayingChildModelList
+                  .map((item) => item.index)
+                  .toList() ??
+              [];
+        }
+      } catch (e) {
+        debugPrint('Error observing scroll position: $e');
       }
 
-      final shouldTrigger = widget.reversed
-          ? scrollPercentage <= threshold
-          : scrollPercentage >= threshold;
+      if (!mounted) return;
+
+      final shouldTrigger = _isNearListEnd(visibleIndices);
 
       if (shouldTrigger) {
         // Prevent multiple triggers during one scroll gesture.
@@ -917,32 +977,15 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
         // --- Scroll Anchoring Setup: Only for reversed lists ---
         if (widget.reversed) {
-          try {
-            // We can only anchor the scroll position if the list is actually
-            // in the widget tree and has a context.
-            if (_listKey.currentContext != null) {
-              final notificationResult = await _observerController
-                  .dispatchOnceObserve(
-                    sliverContext: _listKey.currentContext!,
-                    isForce: true,
-                    isDependObserveCallback: false,
-                  );
-              final firstItem = notificationResult
-                  .observeResult
-                  ?.innerDisplayingChildModelList
-                  .firstOrNull;
-              final anchorIndex = firstItem?.index;
+          final anchorIndex = visibleIndices.isNotEmpty
+              ? visibleIndices.reduce(min)
+              : null;
 
-              if (anchorIndex != null &&
-                  anchorIndex >= 0 &&
-                  anchorIndex < _oldList.length) {
-                anchorMessageId = _oldList[visualPosition(anchorIndex)].id;
-              }
-            }
-          } catch (e) {
-            debugPrint('Error observing scroll position for anchoring: $e');
+          if (anchorIndex != null &&
+              anchorIndex >= 0 &&
+              anchorIndex < _oldList.length) {
+            anchorMessageId = _oldList[visualPosition(anchorIndex)].id;
           }
-          if (!mounted) return;
           initialMessagesCount = _oldList.length;
         }
         // --- End Scroll Anchoring Setup ---
