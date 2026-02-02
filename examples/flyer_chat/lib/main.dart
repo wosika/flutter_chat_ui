@@ -14,6 +14,7 @@ import 'gemini.dart';
 import 'local.dart';
 import 'pagination_newer.dart';
 import 'pagination_older.dart';
+import 'pagination_with_top_sliver.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -120,12 +121,13 @@ class _FlyerChatHomePageState extends State<FlyerChatHomePage> {
                             if (mounted && context.mounted) {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (context) => Api(
-                                    currentUserId: _currentUserId,
-                                    chatId: _chatIdController.text,
-                                    initialMessages: messages,
-                                    dio: _dio,
-                                  ),
+                                  builder:
+                                      (context) => Api(
+                                        currentUserId: _currentUserId,
+                                        chatId: _chatIdController.text,
+                                        initialMessages: messages,
+                                        dio: _dio,
+                                      ),
                                 ),
                               );
                             }
@@ -144,8 +146,8 @@ class _FlyerChatHomePageState extends State<FlyerChatHomePage> {
                                     actions: <Widget>[
                                       TextButton(
                                         child: const Text('OK'),
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(),
+                                        onPressed:
+                                            () => Navigator.of(context).pop(),
                                       ),
                                     ],
                                   );
@@ -244,8 +246,10 @@ class _FlyerChatHomePageState extends State<FlyerChatHomePage> {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) =>
-                          Gemini(geminiApiKey: _geminiApiKeyController.text),
+                      builder:
+                          (context) => Gemini(
+                            geminiApiKey: _geminiApiKeyController.text,
+                          ),
                     ),
                   );
                 },
@@ -279,12 +283,23 @@ class _FlyerChatHomePageState extends State<FlyerChatHomePage> {
               ),
               const SizedBox(height: 8),
               ElevatedButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const PaginationNewer(),
-                  ),
-                ),
+                onPressed:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const PaginationNewer(),
+                      ),
+                    ),
                 child: const Text('pagination (get newer)'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const PaginationWithTopSliver(),
+                      ),
+                    ),
+                child: const Text('pagination (with top sliver)'),
               ),
               const SizedBox(height: 8),
               ElevatedButton(

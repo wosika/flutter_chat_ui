@@ -890,7 +890,7 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
           if (anchorIndex != null &&
               anchorIndex >= 0 &&
               anchorIndex < _oldList.length) {
-            anchorMessageId = _oldList[anchorIndex].id;
+            anchorMessageId = _oldList[visualPosition(anchorIndex)].id;
           }
           initialMessagesCount = _oldList.length;
         }
@@ -920,11 +920,14 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
                 (m) => m.id == anchorMessageId,
               );
               if (newIndex != -1) {
+                final composerHeight = context
+                    .read<ComposerHeightNotifier>()
+                    .height;
                 _scrollToIndex(
                   newIndex,
                   duration: Duration.zero,
                   alignment: 0,
-                  offset: 0,
+                  offset: composerHeight,
                 );
               }
             }
