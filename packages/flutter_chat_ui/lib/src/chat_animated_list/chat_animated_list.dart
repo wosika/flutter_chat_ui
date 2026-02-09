@@ -928,7 +928,7 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
                 _scrollToIndex(
                   newIndex,
                   duration: Duration.zero,
-                  alignment: 0,
+                  alignment: 1,
                   offset: composerHeight,
                 );
               }
