@@ -278,6 +278,8 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
       (_chatController as ScrollToMessageMixin).attachScrollMethods(
         scrollToMessageId: _scrollToMessageId,
         scrollToIndex: _scrollToIndex,
+        scrollToTop: _scrollToTop,
+        scrollToBottom: _scrollToBottom,
       );
     }
   }
@@ -1096,6 +1098,36 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
       }
     } catch (e) {
       rethrow;
+    }
+  }
+
+  /// Scrolls to the top of the chat list instantly using the scroll controller.
+  /// For reversed lists, the visual top is at maxScrollExtent.
+  /// For non-reversed lists, the visual top is at 0.
+  Future<void> _scrollToTop() async {
+    if (!_scrollController.hasClients || !mounted) return;
+
+    if (widget.reversed) {
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    } else {
+      _scrollController.jumpTo(0);
+    }
+  }
+
+  /// Scrolls to the bottom of the chat list instantly using the scroll controller.
+  /// For reversed lists, the visual bottom is at 0.
+  /// For non-reversed lists, jumpTo maxScrollExtent first to get close, then
+  /// fling to guarantee reaching the true end (maxScrollExtent may shift as
+  /// lazy content renders).
+  Future<void> _scrollToBottom() async {
+    if (!_scrollController.hasClients || !mounted) return;
+
+    if (widget.reversed) {
+      _scrollController.jumpTo(0);
+    } else {
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      _scrollAnimationController.value = 1.0;
+      await _scrollAnimationController.fling();
     }
   }
 

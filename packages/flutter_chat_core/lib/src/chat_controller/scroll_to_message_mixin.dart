@@ -21,6 +21,10 @@ typedef ScrollToIndex =
       double offset,
     });
 
+/// Signature for a function that scrolls the chat list to an absolute position
+/// (top or bottom) using the scroll controller directly.
+typedef ScrollToPosition = Future<void> Function();
+
 /// A mixin for [ChatController] implementations that adds programmatic
 /// scrolling capabilities.
 ///
@@ -29,21 +33,29 @@ typedef ScrollToIndex =
 mixin ScrollToMessageMixin {
   ScrollToMessageId? _scrollToMessageId;
   ScrollToIndex? _scrollToIndex;
+  ScrollToPosition? _scrollToTop;
+  ScrollToPosition? _scrollToBottom;
 
   /// Attaches the scroll methods that will be used for scrolling operations.
   /// This is called automatically by ChatAnimatedList.
   void attachScrollMethods({
     required ScrollToMessageId scrollToMessageId,
     required ScrollToIndex scrollToIndex,
+    ScrollToPosition? scrollToTop,
+    ScrollToPosition? scrollToBottom,
   }) {
     _scrollToMessageId = scrollToMessageId;
     _scrollToIndex = scrollToIndex;
+    _scrollToTop = scrollToTop;
+    _scrollToBottom = scrollToBottom;
   }
 
   /// Detaches the scroll methods when the widget is disposed.
   void detachScrollMethods() {
     _scrollToMessageId = null;
     _scrollToIndex = null;
+    _scrollToTop = null;
+    _scrollToBottom = null;
   }
 
   /// Scrolls to a specific message by ID.
@@ -92,6 +104,25 @@ mixin ScrollToMessageMixin {
       alignment: alignment,
       offset: offset,
     );
+  }
+
+  /// Scrolls to the top of the chat list instantly using the scroll controller.
+  Future<void> scrollToTop() {
+    if (_scrollToTop == null) {
+      return Future.value();
+    }
+
+    return _scrollToTop!();
+  }
+
+  /// Scrolls to the bottom of the chat list instantly using the scroll controller.
+  Future<void> 
+  scrollToBottom() {
+    if (_scrollToBottom == null) {
+      return Future.value();
+    }
+
+    return _scrollToBottom!();
   }
 
   /// Disposes scroll resources. This should be called in the ChatController's dispose method.
