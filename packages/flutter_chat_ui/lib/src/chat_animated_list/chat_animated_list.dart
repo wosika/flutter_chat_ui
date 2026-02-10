@@ -233,6 +233,10 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
   // Set to false when onStartReached returns no new messages, preventing further triggers.
   bool _hasMoreNewer = true;
 
+  // Total scroll extent of topPadding + topSlivers, measured automatically.
+  // Used to suppress pagination when topSlivers are still visible.
+  double _topSliversExtent = 0;
+
   @override
   void initState() {
     super.initState();
@@ -428,6 +432,19 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
     );
 
     List<Widget> buildSlivers() {
+      // A zero-size sentinel sliver that reads precedingScrollExtent to
+      // measure the total height of topPadding + topSlivers automatically.
+      Widget topSliversSentinel() => SliverLayoutBuilder(
+            builder: (context, constraints) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  _topSliversExtent = constraints.precedingScrollExtent;
+                }
+              });
+              return const SliverToBoxAdapter(child: SizedBox.shrink());
+            },
+          );
+
       if (widget.reversed) {
         // Order for CustomScrollView(reverse: true) -> Visual Bottom to Top
         return <Widget>[
@@ -441,6 +458,7 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
           if (widget.topSlivers != null) ...widget.topSlivers!,
           if (widget.topPadding != null)
             SliverPadding(padding: EdgeInsets.only(top: widget.topPadding!)),
+          topSliversSentinel(),
           // Visually at the top (last in sliver list for reverse: true)
         ];
       } else {
@@ -450,6 +468,7 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
           if (widget.topPadding != null)
             SliverPadding(padding: EdgeInsets.only(top: widget.topPadding!)),
           if (widget.topSlivers != null) ...widget.topSlivers!,
+          topSliversSentinel(),
           if (widget.onEndReached != null) _buildLoadMoreSliver(builders),
           sliverAnimatedList,
           if (widget.onStartReached != null)
@@ -841,9 +860,20 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
     }
 
     // --- Handle reaching the end (older messages) ---
+    // Skip pagination if topSlivers are still visible (not fully scrolled past).
+    // For non-reversed: topSlivers visible when offset < _topSliversExtent.
+    // For reversed: topSlivers visible when offset > maxScrollExtent - _topSliversExtent.
+    final topSliversVisible = _topSliversExtent > 0 &&
+        (widget.reversed
+            ? _scrollController.offset >
+                _scrollController.position.maxScrollExtent -
+                    _topSliversExtent
+            : _scrollController.offset < _topSliversExtent);
+
     if (widget.onEndReached != null &&
         _hasMoreOlder &&
         _paginationShouldTrigger &&
+        !topSliversVisible &&
         !context.read<LoadMoreNotifier>().isLoadingOlder) {
       // Use ListController to get visible message indices instead of scroll percentage.
       // This ensures pagination triggers based on visible messages in the chat list,
