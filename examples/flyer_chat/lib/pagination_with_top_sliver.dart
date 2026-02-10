@@ -110,36 +110,44 @@ class PaginationWithTopSliverState extends State<PaginationWithTopSliver> {
               ],
             );
           },
-          composerBuilder:
-              (context) => CustomComposer(
-                topWidget: ComposerActionBar(
-                  buttons: [
-                    ComposerActionButton(
-                      icon: Icons.arrow_upward,
-                      title: 'Scroll to 1',
-                      onPressed: () => _scrollToMessage('1'),
-                    ),
-                    ComposerActionButton(
-                      icon: Icons.arrow_upward,
-                      title: 'Scroll to 40',
-                      onPressed: () => _scrollToMessage('40'),
-                    ),
-                    ComposerActionButton(
-                      icon: Icons.arrow_upward,
-                      title: 'Scroll to 80',
-                      onPressed: () => _scrollToMessage('80'),
-                    ),
-                  ],
+          composerBuilder: (context) => CustomComposer(
+            topWidget: ComposerActionBar(
+              buttons: [
+                ComposerActionButton(
+                  icon: Icons.arrow_upward,
+                  title: 'Scroll to 1',
+                  onPressed: () => _scrollToMessage('1'),
                 ),
-              ),
+                ComposerActionButton(
+                  icon: Icons.arrow_upward,
+                  title: 'Scroll to 40',
+                  onPressed: () => _scrollToMessage('40'),
+                ),
+                ComposerActionButton(
+                  icon: Icons.arrow_upward,
+                  title: 'Scroll to 80',
+                  onPressed: () => _scrollToMessage('80'),
+                ),
+                ComposerActionButton(
+                  icon: Icons.keyboard_arrow_down,
+                  title: 'Scroll to bottom',
+                  onPressed: () => _chatController.scrollToBottom(),
+                ),
+                  ComposerActionButton(
+                  icon: Icons.keyboard_arrow_up,
+                  title: 'Scroll to up',
+                  onPressed: () => _chatController.scrollToTop(),
+                ),
+              ],
+            ),
+          ),
         ),
         chatController: _chatController,
         currentUserId: _currentUser.id,
-        resolveUser:
-            (id) => Future.value(switch (id) {
-              'me' => _currentUser,
-              _ => null,
-            }),
+        resolveUser: (id) => Future.value(switch (id) {
+          'me' => _currentUser,
+          _ => null,
+        }),
         theme: ChatTheme.fromThemeData(theme),
       ),
     );
@@ -158,10 +166,9 @@ class PaginationWithTopSliverState extends State<PaginationWithTopSliver> {
     _loadCount++;
 
     final messagesBefore = _chatController.messages.length;
-    final firstMessageBefore =
-        _chatController.messages.isNotEmpty
-            ? _chatController.messages.first.id
-            : 'none';
+    final firstMessageBefore = _chatController.messages.isNotEmpty
+        ? _chatController.messages.first.id
+        : 'none';
 
     debugPrint(
       '[PaginationWithTopSliver] ====== Load #$_loadCount Started ======',
@@ -229,40 +236,37 @@ class PaginationWithTopSliverState extends State<PaginationWithTopSliver> {
   void _showDebugInfo() {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Debug Info'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Total loads: $_loadCount'),
-                  const SizedBox(height: 8),
-                  Text('Messages in list: ${_chatController.messages.length}'),
-                  const SizedBox(height: 8),
-                  Text('Has more: $_hasMore'),
-                  const SizedBox(height: 8),
-                  Text('Is loading: $_isLoading'),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Last load info:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _lastAnchorInfo.isEmpty ? 'No loads yet' : _lastAnchorInfo,
-                  ),
-                ],
+      builder: (context) => AlertDialog(
+        title: const Text('Debug Info'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Total loads: $_loadCount'),
+              const SizedBox(height: 8),
+              Text('Messages in list: ${_chatController.messages.length}'),
+              const SizedBox(height: 8),
+              Text('Has more: $_hasMore'),
+              const SizedBox(height: 8),
+              Text('Is loading: $_isLoading'),
+              const SizedBox(height: 16),
+              const Text(
+                'Last load info:',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
-              ),
+              const SizedBox(height: 4),
+              Text(_lastAnchorInfo.isEmpty ? 'No loads yet' : _lastAnchorInfo),
             ],
           ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 

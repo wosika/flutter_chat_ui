@@ -9,6 +9,7 @@ import 'widgets/composer_action_bar.dart';
 
 /// Custom ScrollPosition that keeps bottom content visible when viewport shrinks.
 /// This makes a forward list behave like a reversed list during keyboard resize.
+/// Also supports starting at the bottom on first layout via [startAtBottom].
 class _BottomKeepingScrollPosition extends ScrollPositionWithSingleContext {
   double? _previousViewportDimension;
   bool keepBottomOnResize = true;
@@ -19,6 +20,11 @@ class _BottomKeepingScrollPosition extends ScrollPositionWithSingleContext {
     super.oldPosition,
     super.initialPixels,
   });
+
+  @override
+  bool applyContentDimensions(double minScrollExtent, double maxScrollExtent) {
+    return super.applyContentDimensions(minScrollExtent, maxScrollExtent);
+  }
 
   @override
   bool applyViewportDimension(double viewportDimension) {
@@ -40,6 +46,8 @@ class _BottomKeepingScrollPosition extends ScrollPositionWithSingleContext {
 
 /// Custom ScrollController that creates _BottomKeepingScrollPosition.
 class BottomKeepingScrollController extends ScrollController {
+  BottomKeepingScrollController();
+
   bool _keepBottomOnResize = true;
 
   set keepBottomOnResize(bool value) {
@@ -61,7 +69,6 @@ class BottomKeepingScrollController extends ScrollController {
       physics: physics,
       context: context,
       oldPosition: oldPosition,
-      initialPixels: initialScrollOffset,
     )..keepBottomOnResize = _keepBottomOnResize;
   }
 }
@@ -98,6 +105,10 @@ class _KeyboardResizeDemoState extends State<KeyboardResizeDemo>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScrollChanged);
+    // Scroll to bottom after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _chatController.scrollToBottom();
+    });
   }
 
   @override
@@ -135,8 +146,7 @@ class _KeyboardResizeDemoState extends State<KeyboardResizeDemo>
     if (!_scrollController.hasClients) return;
 
     final maxScroll = _scrollController.position.maxScrollExtent;
-    final isAtBottom =
-        _scrollController.offset >= maxScroll - _bottomThreshold;
+    final isAtBottom = _scrollController.offset >= maxScroll - _bottomThreshold;
 
     if (_isAtBottom != isAtBottom) {
       setState(() {
@@ -171,8 +181,7 @@ class _KeyboardResizeDemoState extends State<KeyboardResizeDemo>
   }
 
   Future<void> _scrollToMessage(MessageID messageId) async {
-    var messageExists =
-        _chatController.messages.any((m) => m.id == messageId);
+    var messageExists = _chatController.messages.any((m) => m.id == messageId);
 
     if (messageExists) {
       await _chatController.scrollToMessage(messageId, offset: 0);
@@ -189,8 +198,7 @@ class _KeyboardResizeDemoState extends State<KeyboardResizeDemo>
 
     while (!messageExists && _hasMore) {
       await _loadOlderMessages();
-      messageExists =
-          _chatController.messages.any((m) => m.id == messageId);
+      messageExists = _chatController.messages.any((m) => m.id == messageId);
     }
 
     scaffoldMessenger.hideCurrentSnackBar();
@@ -202,11 +210,13 @@ class _KeyboardResizeDemoState extends State<KeyboardResizeDemo>
     final theme = Theme.of(context);
     final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
 
-    final effectiveIsAtBottom =
-        _isKeyboardVisible ? _lockedIsAtBottom : _isAtBottom;
+    final effectiveIsAtBottom = _isKeyboardVisible
+        ? _lockedIsAtBottom
+        : _isAtBottom;
 
-    final composerBottomPadding =
-        (!effectiveIsAtBottom && keyboardHeight > 0) ? keyboardHeight : 0.0;
+    final composerBottomPadding = (!effectiveIsAtBottom && keyboardHeight > 0)
+        ? keyboardHeight
+        : 0.0;
 
     return Scaffold(
       resizeToAvoidBottomInset: effectiveIsAtBottom,
@@ -230,8 +240,9 @@ class _KeyboardResizeDemoState extends State<KeyboardResizeDemo>
                 effectiveIsAtBottom ? 'Resize' : 'Overlay',
                 style: const TextStyle(fontSize: 12),
               ),
-              backgroundColor:
-                  effectiveIsAtBottom ? Colors.blue : Colors.purple,
+              backgroundColor: effectiveIsAtBottom
+                  ? Colors.blue
+                  : Colors.purple,
             ),
           ),
         ],
@@ -243,12 +254,16 @@ class _KeyboardResizeDemoState extends State<KeyboardResizeDemo>
               children: [
                 ChatAnimatedList(
                   shouldAdjustScrollOnKeyboard: false,
+                  initialScrollToEndMode: InitialScrollToEndMode.none,
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.manual,
                   itemBuilder: itemBuilder,
                   scrollController: _scrollController,
                   bottomPadding: 80,
                   onEndReached: _loadOlderMessages,
+                  extentEstimation: (index, crossAxisExtent) {
+                    return 1000;
+                  },
                   topSlivers: [
                     SliverToBoxAdapter(
                       child: Container(
@@ -261,18 +276,14 @@ class _KeyboardResizeDemoState extends State<KeyboardResizeDemo>
                               Icon(
                                 Icons.photo_library,
                                 size: 48,
-                                color:
-                                    theme.colorScheme.onPrimaryContainer,
+                                color: theme.colorScheme.onPrimaryContainer,
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 'Top Sliver (200px)',
-                                style: theme.textTheme.titleMedium
-                                    ?.copyWith(
-                                      color: theme
-                                          .colorScheme
-                                          .onPrimaryContainer,
-                                    ),
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: theme.colorScheme.onPrimaryContainer,
+                                ),
                               ),
                             ],
                           ),
@@ -302,14 +313,12 @@ class _KeyboardResizeDemoState extends State<KeyboardResizeDemo>
                         ComposerActionButton(
                           icon: Icons.keyboard_arrow_down,
                           title: 'To bottom',
-                          onPressed: () =>
-                              _chatController.scrollToBottom(),
+                          onPressed: () => _chatController.scrollToBottom(),
                         ),
                         ComposerActionButton(
                           icon: Icons.keyboard_arrow_up,
                           title: 'To top',
-                          onPressed: () =>
-                              _chatController.scrollToTop(),
+                          onPressed: () => _chatController.scrollToTop(),
                         ),
                       ],
                     ),
@@ -321,14 +330,14 @@ class _KeyboardResizeDemoState extends State<KeyboardResizeDemo>
           composerBuilder: (context) {
             return const SizedBox.shrink();
           },
-          textMessageBuilder: (
-            context,
-            message,
-            index, {
-            required bool isSentByMe,
-            MessageGroupStatus? groupStatus,
-          }) =>
-              FlyerChatTextMessage(message: message, index: index),
+          textMessageBuilder:
+              (
+                context,
+                message,
+                index, {
+                required bool isSentByMe,
+                MessageGroupStatus? groupStatus,
+              }) => FlyerChatTextMessage(message: message, index: index),
         ),
         chatController: _chatController,
         currentUserId: _currentUser.id,
@@ -358,10 +367,7 @@ class _CustomComposer extends StatefulWidget {
   final FocusNode focusNode;
   final Widget topWidget;
 
-  const _CustomComposer({
-    required this.focusNode,
-    required this.topWidget,
-  });
+  const _CustomComposer({required this.focusNode, required this.topWidget});
 
   @override
   State<_CustomComposer> createState() => _CustomComposerState();
@@ -422,17 +428,16 @@ class _CustomComposerState extends State<_CustomComposer> {
                         decoration: InputDecoration(
                           hintText: 'Type a message',
                           hintStyle: chatTheme.bodyMedium.copyWith(
-                            color: chatTheme.onSurface
-                                .withValues(alpha: 0.5),
+                            color: chatTheme.onSurface.withValues(alpha: 0.5),
                           ),
                           border: const OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.all(Radius.circular(24)),
+                            borderRadius: BorderRadius.all(Radius.circular(24)),
                             borderSide: BorderSide.none,
                           ),
                           filled: true,
-                          fillColor: chatTheme.surfaceContainerHigh
-                              .withValues(alpha: 0.8),
+                          fillColor: chatTheme.surfaceContainerHigh.withValues(
+                            alpha: 0.8,
+                          ),
                         ),
                         style: chatTheme.bodyMedium.copyWith(
                           color: chatTheme.onSurface,
@@ -465,15 +470,12 @@ class _CustomComposerState extends State<_CustomComposer> {
   void _measure() {
     if (!mounted) return;
 
-    final renderBox =
-        _key.currentContext?.findRenderObject() as RenderBox?;
+    final renderBox = _key.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox != null) {
       final height = renderBox.size.height;
       final bottomSafeArea = MediaQuery.of(context).padding.bottom;
 
-      context
-          .read<ComposerHeightNotifier>()
-          .setHeight(height - bottomSafeArea);
+      context.read<ComposerHeightNotifier>().setHeight(height - bottomSafeArea);
     }
   }
 }

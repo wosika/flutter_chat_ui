@@ -11,6 +11,7 @@ import 'api_get_chat_id.dart';
 import 'api_get_initial_messages.dart';
 import 'basic.dart';
 import 'gemini.dart';
+import 'keyboard_resize_demo.dart';
 import 'local.dart';
 import 'pagination_newer.dart';
 import 'pagination_older.dart';
@@ -309,6 +310,17 @@ class _FlyerChatHomePageState extends State<FlyerChatHomePage> {
                   ).push(MaterialPageRoute(builder: (context) => Basic()));
                 },
                 child: const Text('basic'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const KeyboardResizeDemo(),
+                    ),
+                  );
+                },
+                child: const Text('keyboard resize demo'),
               ),
             ],
           ),

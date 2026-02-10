@@ -5,7 +5,7 @@ import 'package:flutter_chat_core/flutter_chat_core.dart';
 const _mockDatabaseDelay = Duration(milliseconds: 500);
 
 class MockDatabase {
-  static final _messages = List.generate(100, (i) {
+  static final _messages = List.generate(10000, (i) {
     final random = Random();
     final numLines = random.nextInt(4) + 1;
     final text = List.generate(
@@ -16,7 +16,7 @@ class MockDatabase {
       id: (i + 1).toString(),
       authorId: 'me',
       createdAt: DateTime.fromMillisecondsSinceEpoch(
-        1736893310000 - ((100 - i) * 1000),
+        1736893310000 - ((10000 - i) * 1000),
         isUtc: true,
       ),
       text: text,
@@ -30,7 +30,7 @@ class MockDatabase {
       .toList();
 
   static final List<Message> initialOlderMessages = _messages
-      .skip(80)
+      .skip(9980)
       .take(20)
       .toList()
       .reversed
@@ -57,7 +57,7 @@ class MockDatabase {
   }) async {
     await Future.delayed(_mockDatabaseDelay);
     final end = newestMessageId == null
-        ? 80
+        ? 9980
         : _messages.indexWhere((m) => m.id == newestMessageId);
 
     if (end <= 0) return [];

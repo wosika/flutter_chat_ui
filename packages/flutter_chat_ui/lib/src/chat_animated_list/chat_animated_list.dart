@@ -11,7 +11,6 @@ import 'package:super_sliver_list/super_sliver_list.dart';
 import '../empty_chat_list.dart';
 import '../load_more.dart';
 import '../scroll_to_bottom.dart';
-import '../utils/composer_height_notifier.dart';
 import '../utils/load_more_notifier.dart';
 import '../utils/message_list_diff.dart';
 import '../utils/typedefs.dart';
@@ -121,6 +120,10 @@ class ChatAnimatedList extends StatefulWidget {
   /// Physics for the scroll view.
   final ScrollPhysics? physics;
 
+  /// Optional method to estimate the extent (height) of each item.
+  /// Providing a good estimate improves scroll anchoring accuracy during pagination.
+  final ExtentEstimationProvider? extentEstimation;
+
   /// Whether the keyboard should push up the chat list when it appears.
   /// If false, the keyboard will overlay the chat list without adjusting scroll position.
   /// Defaults to true.
@@ -183,6 +186,7 @@ class ChatAnimatedList extends StatefulWidget {
     this.messagesGroupingMode,
     this.messageGroupingTimeoutInSeconds,
     this.physics,
+    this.extentEstimation,
     this.shouldAdjustScrollOnKeyboard = true,
   });
 
@@ -392,6 +396,7 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
     final sliverAnimatedList = SuperAnimateSliverList(
       key: _listKey,
       listController: _listController,
+      extentEstimation: widget.extentEstimation,
       initialItemCount: _oldList.length,
       findChildIndexCallback: (Key key) {
         if (key is ValueKey<MessageID>) {
@@ -858,25 +863,9 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
         // Prevent multiple triggers during one scroll gesture.
         _paginationShouldTrigger = false;
 
-        // Store the ID of the topmost visible item before loading new messages.
-        // This item will be used as an anchor to maintain scroll position.
-        MessageID? anchorMessageId;
-        int? initialMessagesCount;
-
-        // --- Scroll Anchoring Setup: Only for non-reversed lists ---
-        if (!widget.reversed) {
-          final anchorIndex = visibleIndices.isNotEmpty
-              ? visibleIndices.reduce(min)
-              : null;
-
-          if (anchorIndex != null &&
-              anchorIndex >= 0 &&
-              anchorIndex < _oldList.length) {
-            anchorMessageId = _oldList[visualPosition(anchorIndex)].id;
-          }
-          initialMessagesCount = _oldList.length;
-        }
-        // --- End Scroll Anchoring Setup ---
+        // Remember the oldest visible message before loading.
+        final anchorMessageId =
+            !widget.reversed && _oldList.isNotEmpty ? _oldList.first.id : null;
 
         // Show loading indicator.
         context.read<LoadMoreNotifier>().setLoadingOlder(true);
@@ -893,28 +882,18 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
           final notifier = context.read<LoadMoreNotifier>();
 
-          // --- Scroll Anchoring Action: Only for non-reversed lists ---
-          if (!widget.reversed) {
-            // initialMessageCount will be non-null here if !widget.reversed
-            final didAddMessages = _oldList.length > initialMessagesCount!;
-            if (didAddMessages && anchorMessageId != null) {
-              final newIndex = _oldList.indexWhere(
-                (m) => m.id == anchorMessageId,
+          // After loading older messages, jump to the previously oldest message's top.
+          if (!widget.reversed && anchorMessageId != null) {
+            final newIndex =
+                _oldList.indexWhere((m) => m.id == anchorMessageId);
+            if (newIndex != -1) {
+              _listController.jumpToItem(
+                index: newIndex,
+                scrollController: _scrollController,
+                alignment: 0,
               );
-              if (newIndex != -1) {
-                final composerHeight = context
-                    .read<ComposerHeightNotifier>()
-                    .height;
-                _scrollToIndex(
-                  newIndex,
-                  duration: Duration.zero,
-                  alignment: 1,
-                  offset: composerHeight,
-                );
-              }
             }
           }
-          // --- End Scroll Anchoring Action ---
 
           // Hide loading indicator.
           notifier.setLoadingOlder(false);
@@ -948,23 +927,9 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
         // Prevent multiple triggers during one scroll gesture.
         _startPaginationShouldTrigger = false;
 
-        MessageID? anchorMessageId;
-        int? initialMessagesCount;
-
-        // --- Scroll Anchoring Setup: Only for reversed lists ---
-        if (widget.reversed) {
-          final anchorIndex = visibleIndices.isNotEmpty
-              ? visibleIndices.reduce(min)
-              : null;
-
-          if (anchorIndex != null &&
-              anchorIndex >= 0 &&
-              anchorIndex < _oldList.length) {
-            anchorMessageId = _oldList[visualPosition(anchorIndex)].id;
-          }
-          initialMessagesCount = _oldList.length;
-        }
-        // --- End Scroll Anchoring Setup ---
+        // Remember the newest visible message before loading.
+        final anchorMessageId =
+            widget.reversed && _oldList.isNotEmpty ? _oldList.last.id : null;
 
         context.read<LoadMoreNotifier>().setLoadingNewer(true);
 
@@ -977,28 +942,18 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
           final notifier = context.read<LoadMoreNotifier>();
 
-          // --- Scroll Anchoring Action: Only for reversed lists ---
-          if (widget.reversed) {
-            // initialMessageCount will be non-null here if widget.reversed
-            final didAddMessages = _oldList.length > initialMessagesCount!;
-            if (didAddMessages && anchorMessageId != null) {
-              final newIndex = _oldList.indexWhere(
-                (m) => m.id == anchorMessageId,
+          // After loading newer messages, jump to the previously newest message's bottom.
+          if (widget.reversed && anchorMessageId != null) {
+            final newIndex =
+                _oldList.indexWhere((m) => m.id == anchorMessageId);
+            if (newIndex != -1) {
+              _listController.jumpToItem(
+                index: visualPosition(newIndex),
+                scrollController: _scrollController,
+                alignment: 1,
               );
-              if (newIndex != -1) {
-                final composerHeight = context
-                    .read<ComposerHeightNotifier>()
-                    .height;
-                _scrollToIndex(
-                  newIndex,
-                  duration: Duration.zero,
-                  alignment: 0,
-                  offset: composerHeight,
-                );
-              }
             }
           }
-          // --- End Scroll Anchoring Action ---
 
           // Hide loading indicator.
           notifier.setLoadingNewer(false);
@@ -1055,9 +1010,6 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
         scrollController: _scrollController,
         alignment: alignment,
       );
-      if (offset != 0 && _scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.offset - offset);
-      }
     } else {
       _listController.animateToItem(
         index: () => visualIndex,
@@ -1069,34 +1021,26 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
     }
   }
 
-  /// Scrolls to the top of the chat list instantly using the scroll controller.
-  /// For reversed lists, the visual top is at maxScrollExtent.
-  /// For non-reversed lists, the visual top is at 0.
+  /// Scrolls to the top of the chat list (oldest messages) using ListController.
   Future<void> _scrollToTop() async {
-    if (!_scrollController.hasClients || !mounted) return;
+    if (!_scrollController.hasClients || !mounted || _oldList.isEmpty) return;
 
-    if (widget.reversed) {
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-    } else {
-      _scrollController.jumpTo(0);
-    }
+    _listController.jumpToItem(
+      index: visualPosition(0),
+      scrollController: _scrollController,
+      alignment: 0,
+    );
   }
 
-  /// Scrolls to the bottom of the chat list instantly using the scroll controller.
-  /// For reversed lists, the visual bottom is at 0.
-  /// For non-reversed lists, jumpTo maxScrollExtent first to get close, then
-  /// fling to guarantee reaching the true end (maxScrollExtent may shift as
-  /// lazy content renders).
+  /// Scrolls to the bottom of the chat list (newest messages) using ListController.
   Future<void> _scrollToBottom() async {
-    if (!_scrollController.hasClients || !mounted) return;
+    if (!_scrollController.hasClients || !mounted || _oldList.isEmpty) return;
 
-    if (widget.reversed) {
-      _scrollController.jumpTo(0);
-    } else {
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      _scrollAnimationController.value = 1.0;
-      await _scrollAnimationController.fling();
-    }
+    _listController.jumpToItem(
+      index: visualPosition(_oldList.length - 1),
+      scrollController: _scrollController,
+      alignment: 1,
+    );
   }
 
   void _onInserted(
