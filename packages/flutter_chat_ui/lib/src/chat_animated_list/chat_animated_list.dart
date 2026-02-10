@@ -228,6 +228,10 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
   bool _paginationShouldTrigger = false;
   // This flag prevents infinite pagination loops when reaching the start of available messages.
   bool _startPaginationShouldTrigger = false;
+  // Set to false when onEndReached returns no new messages, preventing further triggers.
+  bool _hasMoreOlder = true;
+  // Set to false when onStartReached returns no new messages, preventing further triggers.
+  bool _hasMoreNewer = true;
 
   @override
   void initState() {
@@ -838,6 +842,7 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
     // --- Handle reaching the end (older messages) ---
     if (widget.onEndReached != null &&
+        _hasMoreOlder &&
         _paginationShouldTrigger &&
         !context.read<LoadMoreNotifier>().isLoadingOlder) {
       // Use ListController to get visible message indices instead of scroll percentage.
@@ -902,6 +907,9 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
                 );
               }
             }
+          } else {
+            // No new messages were loaded, stop triggering pagination.
+            _hasMoreOlder = false;
           }
 
           // Hide loading indicator.
@@ -914,6 +922,7 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
     // --- Handle reaching the start (newer messages) ---
     if (widget.onStartReached != null &&
+        _hasMoreNewer &&
         _startPaginationShouldTrigger &&
         !context.read<LoadMoreNotifier>().isLoadingNewer) {
       // Use ListController to get visible message indices instead of scroll percentage.
@@ -971,6 +980,9 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
                 );
               }
             }
+          } else {
+            // No new messages were loaded, stop triggering pagination.
+            _hasMoreNewer = false;
           }
 
           // Hide loading indicator.
