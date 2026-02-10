@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_chat_core/flutter_chat_core.dart';
 import 'package:provider/provider.dart';
-import 'package:scrollview_observer/scrollview_observer.dart';
+import 'package:super_sliver_list/super_sliver_list.dart';
 
 import '../empty_chat_list.dart';
 import '../load_more.dart';
@@ -194,9 +194,9 @@ class ChatAnimatedList extends StatefulWidget {
 /// State for [ChatAnimatedList].
 class _ChatAnimatedListState extends State<ChatAnimatedList>
     with TickerProviderStateMixin {
-  final GlobalKey<SliverAnimatedListState> _listKey = GlobalKey();
+  final GlobalKey<SuperAnimateSliverListState> _listKey = GlobalKey();
   late final ChatController _chatController;
-  late final SliverObserverController _observerController;
+  final ListController _listController = ListController();
   late final ScrollController _scrollController;
   late List<Message> _oldList;
   late ValueNotifier<bool> _oldListEmptyNotifier;
@@ -230,9 +230,6 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
     super.initState();
     _chatController = context.read<ChatController>();
     _scrollController = widget.scrollController ?? ScrollController();
-    _observerController = SliverObserverController(
-      controller: _scrollController,
-    )..cacheJumpIndexOffset = false;
 
     _oldList = List.from(_chatController.messages);
     _oldListEmptyNotifier = ValueNotifier(_oldList.isEmpty);
@@ -330,6 +327,7 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
     _scrollAnimationController.removeListener(_linkAnimationToScroll);
     _scrollAnimationController.dispose();
     _operationsSubscription.cancel();
+    _listController.dispose();
 
     // Only try to dispose scroll controller if it's not provided, let
     // user handle disposing it how they want.
@@ -391,8 +389,9 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
     // Define the SliverAnimatedList once as it's used for both
     // reversed and non-reversed lists.
-    final sliverAnimatedList = SliverAnimatedList(
+    final sliverAnimatedList = SuperAnimateSliverList(
       key: _listKey,
+      listController: _listController,
       initialItemCount: _oldList.length,
       findChildIndexCallback: (Key key) {
         if (key is ValueKey<MessageID>) {
@@ -494,16 +493,7 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
       },
       child: Stack(
         children: [
-          SliverViewObserver(
-            controller: _observerController,
-            sliverContexts: () {
-              // Using the key's context ensures we always have the latest, valid
-              // context for the SliverAnimatedList, or null if it's not built.
-              // This is safer than storing a BuildContext.
-              final context = _listKey.currentContext;
-              return [if (context != null) context];
-            },
-            child: CustomScrollView(
+          CustomScrollView(
               controller: _scrollController,
               reverse: widget.reversed,
               physics: widget.physics,
@@ -512,7 +502,6 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
                   ScrollViewKeyboardDismissBehavior.manual,
               slivers: buildSlivers(), // Use the new helper method
             ),
-          ),
           builders.scrollToBottomBuilder?.call(
                 context,
                 _scrollToBottomAnimation,
@@ -846,24 +835,15 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
     if (widget.onEndReached != null &&
         _paginationShouldTrigger &&
         !context.read<LoadMoreNotifier>().isLoadingOlder) {
-      // Use observer to get visible message indices instead of scroll percentage.
+      // Use ListController to get visible message indices instead of scroll percentage.
       // This ensures pagination triggers based on visible messages in the chat list,
       // not the entire ScrollView (which may include topSlivers/bottomSlivers).
       var visibleIndices = <int>[];
       try {
-        if (_listKey.currentContext != null) {
-          final notificationResult = await _observerController
-              .dispatchOnceObserve(
-                sliverContext: _listKey.currentContext!,
-                isForce: true,
-                isDependObserveCallback: false,
-              );
-          visibleIndices = notificationResult
-                  .observeResult
-                  ?.innerDisplayingChildModelList
-                  .map((item) => item.index)
-                  .toList() ??
-              [];
+        final range = _listController.visibleRange;
+        if (range != null) {
+          final (first, last) = range;
+          visibleIndices = List.generate(last - first + 1, (i) => first + i);
         }
       } catch (e) {
         debugPrint('Error observing scroll position: $e');
@@ -948,22 +928,13 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
     if (widget.onStartReached != null &&
         _startPaginationShouldTrigger &&
         !context.read<LoadMoreNotifier>().isLoadingNewer) {
-      // Use observer to get visible message indices instead of scroll percentage.
+      // Use ListController to get visible message indices instead of scroll percentage.
       var visibleIndices = <int>[];
       try {
-        if (_listKey.currentContext != null) {
-          final notificationResult = await _observerController
-              .dispatchOnceObserve(
-                sliverContext: _listKey.currentContext!,
-                isForce: true,
-                isDependObserveCallback: false,
-              );
-          visibleIndices = notificationResult
-                  .observeResult
-                  ?.innerDisplayingChildModelList
-                  .map((item) => item.index)
-                  .toList() ??
-              [];
+        final range = _listController.visibleRange;
+        if (range != null) {
+          final (first, last) = range;
+          visibleIndices = List.generate(last - first + 1, (i) => first + i);
         }
       } catch (e) {
         debugPrint('Error observing scroll position: $e');
@@ -1078,26 +1049,23 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
     final visualIndex = visualPosition(index);
 
-    try {
-      if (duration == Duration.zero) {
-        await _observerController.jumpTo(
-          index: visualIndex,
-          alignment: alignment,
-          offset: (targetOffset) => offset,
-          renderSliverType: ObserverRenderSliverType.list,
-        );
-      } else {
-        await _observerController.animateTo(
-          index: visualIndex,
-          duration: duration,
-          curve: curve,
-          alignment: alignment,
-          offset: (targetOffset) => offset,
-          renderSliverType: ObserverRenderSliverType.list,
-        );
+    if (duration == Duration.zero) {
+      _listController.jumpToItem(
+        index: visualIndex,
+        scrollController: _scrollController,
+        alignment: alignment,
+      );
+      if (offset != 0 && _scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.offset - offset);
       }
-    } catch (e) {
-      rethrow;
+    } else {
+      _listController.animateToItem(
+        index: () => visualIndex,
+        scrollController: _scrollController,
+        alignment: alignment,
+        duration: (estimatedDistance) => duration,
+        curve: (estimatedDistance) => curve,
+      );
     }
   }
 
