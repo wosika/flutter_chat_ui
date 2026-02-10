@@ -858,9 +858,8 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
                 isForce: true,
                 isDependObserveCallback: false,
               );
-          visibleIndices = notificationResult
-                  .observeResult
-                  ?.innerDisplayingChildModelList
+          visibleIndices =
+              notificationResult.observeResult?.innerDisplayingChildModelList
                   .map((item) => item.index)
                   .toList() ??
               [];
@@ -958,9 +957,8 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
                 isForce: true,
                 isDependObserveCallback: false,
               );
-          visibleIndices = notificationResult
-                  .observeResult
-                  ?.innerDisplayingChildModelList
+          visibleIndices =
+              notificationResult.observeResult?.innerDisplayingChildModelList
                   .map((item) => item.index)
                   .toList() ??
               [];
@@ -1108,9 +1106,11 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
     if (!_scrollController.hasClients || !mounted) return;
 
     if (widget.reversed) {
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      await _observerController.jumpTo(index: _oldList.length - 1);
+   //   _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     } else {
-      _scrollController.jumpTo(0);
+      await _observerController.jumpTo(index: 0);
+     // _scrollController.jumpTo(0);
     }
   }
 
@@ -1123,11 +1123,13 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
     if (!_scrollController.hasClients || !mounted) return;
 
     if (widget.reversed) {
-      _scrollController.jumpTo(0);
+      await _observerController.jumpTo(index: 0);
+     // _scrollController.jumpTo(0);
     } else {
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      _scrollAnimationController.value = 1.0;
-      await _scrollAnimationController.fling();
+      await _observerController.jumpTo(index: _oldList.length - 1);
+     // _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      // _scrollAnimationController.value = 1.0;
+      // await _scrollAnimationController.fling();
     }
   }
 
