@@ -865,7 +865,8 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
         // Remember the oldest visible message before loading.
         final anchorMessageId =
-            !widget.reversed && _oldList.isNotEmpty ? _oldList.first.id : null;
+            _oldList.isNotEmpty ? _oldList.first.id : null;
+        final initialCount = _oldList.length;
 
         // Show loading indicator.
         context.read<LoadMoreNotifier>().setLoadingOlder(true);
@@ -882,16 +883,24 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
           final notifier = context.read<LoadMoreNotifier>();
 
-          // After loading older messages, jump to the previously oldest message's top.
-          if (!widget.reversed && anchorMessageId != null) {
+          // Only jump if new messages were actually added.
+          if (anchorMessageId != null && _oldList.length > initialCount) {
             final newIndex =
                 _oldList.indexWhere((m) => m.id == anchorMessageId);
             if (newIndex != -1) {
-              _listController.jumpToItem(
-                index: newIndex,
-                scrollController: _scrollController,
-                alignment: 0,
-              );
+              if (widget.reversed) {
+                _listController.jumpToItem(
+                  index: visualPosition(newIndex),
+                  scrollController: _scrollController,
+                  alignment: 0,
+                );
+              } else {
+                _listController.jumpToItem(
+                  index: newIndex,
+                  scrollController: _scrollController,
+                  alignment: 0,
+                );
+              }
             }
           }
 
@@ -929,7 +938,8 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
         // Remember the newest visible message before loading.
         final anchorMessageId =
-            widget.reversed && _oldList.isNotEmpty ? _oldList.last.id : null;
+            _oldList.isNotEmpty ? _oldList.last.id : null;
+        final initialCount = _oldList.length;
 
         context.read<LoadMoreNotifier>().setLoadingNewer(true);
 
@@ -942,16 +952,24 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
           final notifier = context.read<LoadMoreNotifier>();
 
-          // After loading newer messages, jump to the previously newest message's bottom.
-          if (widget.reversed && anchorMessageId != null) {
+          // Only jump if new messages were actually added.
+          if (anchorMessageId != null && _oldList.length > initialCount) {
             final newIndex =
                 _oldList.indexWhere((m) => m.id == anchorMessageId);
             if (newIndex != -1) {
-              _listController.jumpToItem(
-                index: visualPosition(newIndex),
-                scrollController: _scrollController,
-                alignment: 1,
-              );
+              if (widget.reversed) {
+                _listController.jumpToItem(
+                  index: visualPosition(newIndex),
+                  scrollController: _scrollController,
+                  alignment: 1,
+                );
+              } else {
+                _listController.jumpToItem(
+                  index: newIndex,
+                  scrollController: _scrollController,
+                  alignment: 1,
+                );
+              }
             }
           }
 
