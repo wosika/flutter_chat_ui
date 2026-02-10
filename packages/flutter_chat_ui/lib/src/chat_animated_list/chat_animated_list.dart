@@ -898,9 +898,6 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
         // Prevent multiple triggers during one scroll gesture.
         _paginationShouldTrigger = false;
 
-        // Remember the oldest visible message before loading.
-        final anchorMessageId =
-            _oldList.isNotEmpty ? _oldList.first.id : null;
         final initialCount = _oldList.length;
 
         // Show loading indicator.
@@ -918,26 +915,7 @@ class _ChatAnimatedListState extends State<ChatAnimatedList>
 
           final notifier = context.read<LoadMoreNotifier>();
 
-          // Only jump if new messages were actually added.
-          if (anchorMessageId != null && _oldList.length > initialCount) {
-            final newIndex =
-                _oldList.indexWhere((m) => m.id == anchorMessageId);
-            if (newIndex != -1) {
-              if (widget.reversed) {
-                _listController.jumpToItem(
-                  index: visualPosition(newIndex),
-                  scrollController: _scrollController,
-                  alignment: 0,
-                );
-              } else {
-                _listController.jumpToItem(
-                  index: newIndex,
-                  scrollController: _scrollController,
-                  alignment: 0,
-                );
-              }
-            }
-          } else {
+          if (_oldList.length <= initialCount) {
             // No new messages were loaded, stop triggering pagination.
             _hasMoreOlder = false;
           }
